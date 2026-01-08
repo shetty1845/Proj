@@ -32,7 +32,7 @@ print("="*80)
 AWS_REGION = os.getenv('AWS_REGION', 'us-east-1')
 AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID')
 AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
-SNS_TOPIC_ARN = os.getenv('SNS_TOPIC_ARN')  # Required: arn:aws:sns:REGION:ACCOUNT:topic-name
+SNS_TOPIC_ARN = os.getenv('arn:aws:sns:ap-southeast-1:071499847720:CinemaPulse-Notifications:7ae34697-759a-4131-8e15-e48a3feddcf3')  # Required: arn:aws:sns:REGION:ACCOUNT:topic-name
 
 # Email Configuration (Gmail App Password)
 SMTP_SERVER = "smtp.gmail.com"
