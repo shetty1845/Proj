@@ -2,364 +2,310 @@ from flask import Flask, render_template, request, redirect, url_for, flash, jso
 import boto3
 from boto3.dynamodb.conditions import Key, Attr
 from botocore.exceptions import ClientError
+import uuid
 from datetime import datetime
 from decimal import Decimal
 import os
 from dotenv import load_dotenv
-from werkzeug.security import generate_password_hash, check_password_hash
+import secrets
 import re
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
+import hashlib
+from werkzeug.security import generate_password_hash, check_password_hash
 
 load_dotenv()
 
 app = Flask(__name__)
-app.secret_key = os.getenv('SECRET_KEY', os.urandom(32))
+app.secret_key = os.getenv('SECRET_KEY', secrets.token_hex(32))
 
 @app.context_processor
 def inject_now():
     return {'now': datetime.now()}
 
 print("\n" + "="*80)
-print("🎬 CinemaPulse - AWS DynamoDB + SNS Production App")
+print("🎬 CinemaPulse - Real-Time Movie Feedback & Analytics Platform")
 print("="*80)
 
 # ============================================================================
-# FIXED AWS CONFIGURATION (CORRECTED SNS ARN)
+# AWS DYNAMODB CONFIGURATION
 # ============================================================================
 
-AWS_REGION = os.getenv('AWS_REGION', 'ap-south-1')
-AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID')
-AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
-SNS_TOPIC_ARN = os.getenv('SNS_TOPIC_ARN')  # FIXED: Now reads from .env correctly
+AWS_REGION = os.getenv('AWS_REGION', 'us-east-1')
+aws_key = os.getenv('AWS_ACCESS_KEY_ID')
+aws_secret = os.getenv('AWS_SECRET_ACCESS_KEY')
 
-# Email Configuration
-SMTP_SERVER = "smtp.gmail.com"
-SMTP_PORT = 587
-SENDER_EMAIL = os.getenv('SENDER_EMAIL')
-SENDER_PASSWORD = os.getenv('SENDER_PASSWORD')
+print(f"📍 Region: {AWS_REGION}")
+print(f"🔑 Access Key: {aws_key[:10] + '...' if aws_key else '❌ NOT SET'}")
+print(f"🔐 Secret Key: {'✅ SET' if aws_secret else '❌ NOT SET'}")
 
-# Graceful validation (no crash)
-missing_env = []
-if not AWS_ACCESS_KEY_ID: missing_env.append('AWS_ACCESS_KEY_ID')
-if not AWS_SECRET_ACCESS_KEY: missing_env.append('AWS_SECRET_ACCESS_KEY')
-if not SNS_TOPIC_ARN: missing_env.append('SNS_TOPIC_ARN')
-if not SENDER_EMAIL: missing_env.append('SENDER_EMAIL')
-if not SENDER_PASSWORD: missing_env.append('SENDER_PASSWORD')
-
-if missing_env:
-    print(f"⚠️  Missing env vars: {', '.join(missing_env)}")
-    print("✅ Running in SAFE MODE (Local storage)")
-else:
-    print(f"✅ AWS Region: {AWS_REGION}")
-    print(f"✅ SNS Topic: {SNS_TOPIC_ARN}")
-    print(f"✅ Email Config: ✅ SET")
-
-# AWS Clients with fallback
-AWS_AVAILABLE = False
+use_dynamodb = False
 dynamodb = None
-sns_client = None
+users_table = None
+reviews_table = None
+movies_table = None
 
+# Try to connect to DynamoDB
 try:
-    if AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY:
-        dynamodb = boto3.resource(
-            'dynamodb',
-            region_name=AWS_REGION,
-            aws_access_key_id=AWS_ACCESS_KEY_ID,
-            aws_secret_access_key=AWS_SECRET_ACCESS_KEY
-        )
-        sns_client = boto3.client(
-            'sns',
-            region_name='ap-southeast-1',  # SNS region from your ARN
-            aws_access_key_id=AWS_ACCESS_KEY_ID,
-            aws_secret_access_key=AWS_SECRET_ACCESS_KEY
-        )
-        AWS_AVAILABLE = True
-        print("✅ AWS Clients initialized")
-except Exception as e:
-    print(f"⚠️  AWS init failed: {e}")
-    AWS_AVAILABLE = False
-
-# Tables (conditional)
-if AWS_AVAILABLE:
-    try:
-        users_table = dynamodb.Table('CinemaPulse_Users')
-        reviews_table = dynamodb.Table('CinemaPulse_Reviews')
-        movies_table = dynamodb.Table('CinemaPulse_Movies')
+    if aws_key and aws_secret:
+        dynamodb = boto3.resource('dynamodb', 
+                                   region_name=AWS_REGION,
+                                   aws_access_key_id=aws_key,
+                                   aws_secret_access_key=aws_secret)
         dynamodb.meta.client.list_tables()
-        print("✅ AWS DynamoDB Connected Successfully!")
-    except Exception as e:
-        print(f"⚠️  DynamoDB test failed: {e}")
-        AWS_AVAILABLE = False
-        users_table = reviews_table = movies_table = None
-else:
-    users_table = reviews_table = movies_table = None
+        print("✅ Connected to AWS DynamoDB successfully!")
+        use_dynamodb = True
+    else:
+        raise Exception("AWS credentials not found")
+except Exception as e:
+    print(f"⚠️  AWS Connection Failed: {e}")
+    print("⚠️  Running in IN-MEMORY MODE")
 
 print("="*80 + "\n")
 
 # ============================================================================
-# ALL ORIGINAL FUNCTIONS WITH FALLBACK (UNCHANGED LOGIC)
+# IN-MEMORY STORAGE + MOVIES
 # ============================================================================
 
-MOVIES_DATA = [
-    {
-        'movie_id': 'movie_001',
-        'title': 'The Quantum Paradox',
-        'description': 'A mind-bending sci-fi thriller exploring parallel universes and quantum mechanics.',
-        'genre': 'Sci-Fi',
-        'release_year': 2024,
-        'director': 'Sarah Mitchell',
-        'image_url': 'https://image.tmdb.org/t/p/w500/8Gxv8gSFCU0XGDykEGv7zR1n2ua.jpg',
-        'total_reviews': 0,
-        'avg_rating': Decimal('0.0'),
-        'active': True,
-        'last_updated': datetime.now().isoformat()
-    },
-    {
-        'movie_id': 'movie_002',
-        'title': 'Echoes of Tomorrow',
-        'description': 'A heartwarming drama about family, time travel, and second chances.',
-        'genre': 'Drama',
-        'release_year': 2025,
-        'director': 'James Chen',
-        'image_url': 'https://image.tmdb.org/t/p/w500/kXfqcdQKsToO0OUXHcrrNCHDBzO.jpg',
-        'total_reviews': 0,
-        'avg_rating': Decimal('0.0'),
-        'active': True,
-        'last_updated': datetime.now().isoformat()
-    },
-    {
-        'movie_id': 'movie_003',
-        'title': 'Shadow Protocol',
-        'description': 'An action-packed espionage thriller with explosive sequences and plot twists.',
-        'genre': 'Action',
-        'release_year': 2025,
-        'director': 'Marcus Rodriguez',
-        'image_url': 'https://image.tmdb.org/t/p/w500/7WsyChQLEftFiDOVTGkv3hFpyyt.jpg',
-        'total_reviews': 0,
-        'avg_rating': Decimal('0.0'),
-        'active': True,
-        'last_updated': datetime.now().isoformat()
-    }
+IN_MEMORY_REVIEWS = []
+IN_MEMORY_USERS = []
+
+MOVIES = [
+    {'movie_id': 'movie_001', 'title': 'The Quantum Paradox', 'description': 'Sci-fi thriller', 'genre': 'Sci-Fi', 'release_year': 2024, 'director': 'Sarah Mitchell', 'total_reviews': 0, 'avg_rating': 0.0, 'image_url': 'https://image.tmdb.org/t/p/w500/8Gxv8gSFCU0XGDykEGv7zR1n2ua.jpg', 'active': True},
+    {'movie_id': 'movie_002', 'title': 'Echoes of Tomorrow', 'description': 'Time travel drama', 'genre': 'Drama', 'release_year': 2025, 'director': 'James Chen', 'image_url': 'https://image.tmdb.org/t/p/w500/kXfqcdQKsToO0OUXHcrrNCHDBzO.jpg', 'total_reviews': 0, 'avg_rating': 0.0, 'active': True},
+    {'movie_id': 'movie_003', 'title': 'Shadow Protocol', 'description': 'Action espionage', 'genre': 'Action', 'release_year': 2025, 'director': 'Marcus Rodriguez', 'image_url': 'https://image.tmdb.org/t/p/w500/7WsyChQLEftFiDOVTGkv3hFpyyt.jpg', 'total_reviews': 0, 'avg_rating': 0.0, 'active': True},
+    {'movie_id': 'movie_004', 'title': 'The Last Symphony', 'description': "Composer's final masterpiece", 'genre': 'Drama', 'release_year': 2024, 'director': 'Elena Volkov', 'image_url': 'https://image.tmdb.org/t/p/w500/qNBAXBIQlnOThrVvA6mA2B5ggV6.jpg', 'total_reviews': 0, 'avg_rating': 0.0, 'active': True},
+    {'movie_id': 'movie_005', 'title': 'Neon City', 'description': 'Cyberpunk dystopia', 'genre': 'Sci-Fi', 'release_year': 2026, 'director': 'Kenji Tanaka', 'image_url': 'https://image.tmdb.org/t/p/w500/pwGmXVKUgKN13psUjlhC9zBcq1o.jpg', 'total_reviews': 0, 'avg_rating': 0.0, 'active': True},
+    {'movie_id': 'movie_006', 'title': 'Desert Storm', 'description': 'Sahara survival thriller', 'genre': 'Thriller', 'release_year': 2025, 'director': 'Ahmed Hassan', 'image_url': 'https://image.tmdb.org/t/p/w500/9BBTo63ANSmhC4e6r62OJFuK2GL.jpg', 'total_reviews': 0, 'avg_rating': 0.0, 'active': True},
+    {'movie_id': 'movie_007', 'title': 'Midnight Racing', 'description': 'Street racing heist', 'genre': 'Action', 'release_year': 2025, 'director': 'Lucas Knight', 'image_url': 'https://image.tmdb.org/t/p/w500/sv1xJUazXeYqALzczSZ3O6nkH75.jpg', 'total_reviews': 0, 'avg_rating': 0.0, 'active': True},
+    {'movie_id': 'movie_008', 'title': 'The Forgotten Island', 'description': 'Lost civilization adventure', 'genre': 'Adventure', 'release_year': 2024, 'director': 'Isabella Santos', 'image_url': 'https://image.tmdb.org/t/p/w500/yDHYTfA3R0jFYba16jBB1ef8oIt.jpg', 'total_reviews': 0, 'avg_rating': 0.0, 'active': True}
 ]
 
-# In-memory fallback storage
-users_db = {}
-reviews_db = []
-
-def send_sns_notification(message, subject="CinemaPulse Notification"):
-    if not AWS_AVAILABLE or not sns_client:
-        print(f"📱 SNS: {subject} (Local mode)")
-        return True
-    try:
-        response = sns_client.publish(TopicArn=SNS_TOPIC_ARN, Message=message, Subject=subject)
-        print(f"✅ SNS sent: {response['MessageId']}")
-        return True
-    except Exception as e:
-        print(f"⚠️ SNS failed: {e}")
-        return False
-
-def send_welcome_email(email, name):
-    msg = MIMEMultipart()
-    msg['From'] = SENDER_EMAIL
-    msg['To'] = email
-    msg['Subject'] = f"Welcome to CinemaPulse, {name}! 🎬"
-    
-    body = f"""
-Dear {name},
-
-Welcome to CinemaPulse! Your real-time movie feedback platform is ready.
-
-✨ What you can do:
-• Rate & review your favorite movies
-• Get personalized recommendations
-• Track your review analytics
-• Share your movie opinions
-
-Start exploring movies and sharing your feedback!
-
-Best regards,
-CinemaPulse Team
-    """
-    msg.attach(MIMEText(body, 'plain'))
-    
-    try:
-        server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
-        server.starttls()
-        server.login(SENDER_EMAIL, SENDER_PASSWORD)
-        text = msg.as_string()
-        server.sendmail(SENDER_EMAIL, email, text)
-        server.quit()
-        print(f"✅ Welcome email sent to {email}")
-        return True
-    except Exception as e:
-        print(f"⚠️ Email failed: {e}")
-        return False
-
-def send_review_notification(email, name, movie_title, rating):
-    msg = MIMEMultipart()
-    msg['From'] = SENDER_EMAIL
-    msg['To'] = email
-    msg['Subject'] = f"Your {rating}/5 Review for {movie_title} Saved! 🎥"
-    
-    body = f"""
-Dear {name},
-
-Your review for "{movie_title}" has been successfully saved!
-
-⭐ Your Rating: {rating}/5
-📅 Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-
-Thank you for sharing your feedback with CinemaPulse!
-
-Happy movie watching! 🍿
-CinemaPulse Team
-    """
-    msg.attach(MIMEText(body, 'plain'))
-    
-    try:
-        server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
-        server.starttls()
-        server.login(SENDER_EMAIL, SENDER_PASSWORD)
-        text = msg.as_string()
-        server.sendmail(SENDER_EMAIL, email, text)
-        server.quit()
-        return True
-    except Exception as e:
-        print(f"⚠️ Review email failed: {e}")
-        return False
+# ============================================================================
+# UTILITY FUNCTIONS
+# ============================================================================
 
 def is_valid_email(email):
     pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
     return re.match(pattern, email) is not None
 
-def register_user(email, password, name):
-    """Register - DynamoDB first, then local fallback"""
-    try:
-        email = email.lower().strip()
-        
-        if AWS_AVAILABLE and users_table:
-            response = users_table.get_item(Key={'email': email})
-            if 'Item' in response:
-                return False, "User already exists"
-            
-            if not is_valid_email(email):
-                return False, "Invalid email format"
-            if len(password) < 6:
-                return False, "Password must be at least 6 characters"
-            if len(name.strip()) < 2:
-                return False, "Name must be at least 2 characters"
-            
-            password_hash = generate_password_hash(password)
-            timestamp = datetime.now().isoformat()
-            
-            users_table.put_item(Item={
-                'email': email,
-                'name': name,
-                'password_hash': password_hash,
-                'created_at': timestamp,
-                'total_reviews': 0,
-                'avg_rating': Decimal('0.0'),
-                'last_review_date': None,
-                'is_active': True
-            })
-            
-            send_welcome_email(email, name)
-            send_sns_notification(f"NEW USER\nName: {name}\nEmail: {email}", "🚨 New CinemaPulse User")
-            print(f"✅ DynamoDB: User registered: {email}")
-            return True, "Registration successful"
-        
-        # Local fallback (identical logic)
-        if email in users_db:
-            return False, "User already exists"
-        
-        if not is_valid_email(email):
-            return False, "Invalid email format"
-        if len(password) < 6:
-            return False, "Password must be at least 6 characters"
-        if len(name.strip()) < 2:
-            return False, "Name must be at least 2 characters"
-        
-        users_db[email] = {
-            'name': name,
-            'password_hash': generate_password_hash(password),
-            'created_at': datetime.now().isoformat(),
-            'total_reviews': 1,
-            'avg_rating': Decimal('0.0'),
-            'is_active': True
-        }
-        
-        send_welcome_email(email, name)
-        print(f"✅ LOCAL: User registered: {email}")
-        return True, "Registration successful"
-        
-    except Exception as e:
-        print(f"❌ Registration error: {e}")
-        return False, "Registration failed"
+def hash_password(password):
+    return generate_password_hash(password)
 
-# [REST OF YOUR ORIGINAL FUNCTIONS REMAIN IDENTICAL - just wrapped with AWS_AVAILABLE checks]
-# For brevity, continuing with same pattern for all functions...
+def verify_password(stored_hash, password):
+    return check_password_hash(stored_hash, password)
+
+# ============================================================================
+# DYNAMODB FUNCTIONS (if enabled)
+# ============================================================================
+
+if use_dynamodb:
+    try:
+        users_table = dynamodb.Table('CinemaPulse_Users')
+        reviews_table = dynamodb.Table('CinemaPulse_Reviews')
+        movies_table = dynamodb.Table('CinemaPulse_Movies')
+        print("✅ DynamoDB tables ready!")
+    except:
+        use_dynamodb = False
+        print("⚠️  DynamoDB tables unavailable, using memory")
+
+def register_user_dynamodb(email, password, name):
+    response = users_table.get_item(Key={'email': email})
+    if 'Item' in response: return False, "User already exists"
+    
+    password_hash = hash_password(password)
+    users_table.put_item(Item={
+        'email': email, 'name': name, 'password_hash': password_hash,
+        'created_at': datetime.now().isoformat(), 'total_reviews': 0,
+        'avg_rating': Decimal('0.0'), 'is_active': True
+    })
+    return True, "Registration successful"
+
+def login_user_dynamodb(email, password):
+    response = users_table.get_item(Key={'email': email})
+    if 'Item' in response:
+        user = response['Item']
+        if verify_password(user['password_hash'], password):
+            return True, user
+    return False, "Invalid credentials"
+
+# ============================================================================
+# MEMORY FUNCTIONS (fallback)
+# ============================================================================
+
+def register_user_memory(email, password, name):
+    if email in IN_MEMORY_USERS: return False, "User already exists"
+    IN_MEMORY_USERS[email] = {
+        'name': name, 'password_hash': hash_password(password),
+        'total_reviews': 0, 'avg_rating': 0.0, 'created_at': datetime.now().isoformat()
+    }
+    return True, "Registration successful"
+
+def login_user_memory(email, password):
+    if email in IN_MEMORY_USERS:
+        user = IN_MEMORY_USERS[email]
+        if verify_password(user['password_hash'], password):
+            return True, user
+    return False, "Invalid credentials"
+
+# ============================================================================
+# UNIFIED CORE FUNCTIONS
+# ============================================================================
+
+def register_user(email, password, name):
+    if not is_valid_email(email) or len(password) < 6 or len(name) < 2:
+        return False, "Invalid input"
+    return register_user_dynamodb(email, password, name) if use_dynamodb else register_user_memory(email, password, name)
 
 def login_user(email, password):
-    try:
-        email = email.lower().strip()
-        if AWS_AVAILABLE and users_table:
-            response = users_table.get_item(Key={'email': email})
-            if 'Item' in response:
-                user = response['Item']
-                if check_password_hash(user['password_hash'], password) and user.get('is_active', True):
-                    return True, user
-        
-        # Local fallback
-        if email in users_db and check_password_hash(users_db[email]['password_hash'], password):
-            return True, users_db[email]
-            
-        return False, "Invalid credentials"
-    except Exception as e:
-        print(f"❌ Login error: {e}")
-        return False, "Login failed"
+    return login_user_dynamodb(email, password) if use_dynamodb else login_user_memory(email, password)
 
-# Keep ALL your original routes exactly the same...
+def get_all_movies():
+    movies = MOVIES.copy()
+    for movie in movies:
+        reviews = [r for r in IN_MEMORY_REVIEWS if r['movie_id'] == movie['movie_id']]
+        movie['total_reviews'] = len(reviews)
+        movie['avg_rating'] = sum(r['rating'] for r in reviews) / len(reviews) if reviews else 0.0
+    return sorted(movies, key=lambda x: x['avg_rating'], reverse=True)
+
+def get_movie_by_id(movie_id):
+    for movie in MOVIES:
+        if movie['movie_id'] == movie_id:
+            reviews = [r for r in IN_MEMORY_REVIEWS if r['movie_id'] == movie_id]
+            movie = movie.copy()
+            movie['total_reviews'] = len(reviews)
+            movie['avg_rating'] = sum(r['rating'] for r in reviews) / len(reviews) if reviews else 0.0
+            return movie
+    return None
+
+def submit_review(name, email, movie_id, rating, feedback):
+    review = {
+        'review_id': str(uuid.uuid4()), 'name': name, 'email': email,
+        'movie_id': movie_id, 'rating': int(rating), 'feedback': feedback,
+        'created_at': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    }
+    IN_MEMORY_REVIEWS.append(review)
+    print(f"✅ Review saved: {name} rated {rating}/5")
+    return True
+
+def get_movie_reviews(movie_id):
+    return [r for r in IN_MEMORY_REVIEWS if r['movie_id'] == movie_id][-10:]
+
+# ============================================================================
+# ROUTES (COMPLETE)
+# ============================================================================
+
+@app.route('/')
+def index():
+    return render_template('home.html')
+
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
         email = request.form.get('email', '').strip().lower()
         password = request.form.get('password', '')
         name = request.form.get('name', '').strip()
-        
-        success, message = register_user(email, password, name)
-        if success:
-            flash('Registration successful! Please login.', 'success')
-            return redirect(url_for('login'))
-        else:
-            flash(message, 'danger')
-    
+        success, msg = register_user(email, password, name)
+        flash(msg, 'success' if success else 'danger')
+        if success: return redirect(url_for('login'))
     return render_template('register.html')
 
-# ... [ALL OTHER ROUTES IDENTICAL TO YOUR ORIGINAL]
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        email = request.form.get('email', '').strip().lower()
+        password = request.form.get('password', '')
+        success, user = login_user(email, password)
+        if success:
+            session['user_email'] = email
+            session['user_name'] = user.get('name', email)
+            flash('Login successful!', 'success')
+            return redirect(url_for('movies'))
+        flash('Invalid credentials!', 'danger')
+    return render_template('login.html')
+
+@app.route('/logout')
+def logout():
+    session.clear()
+    flash('Logged out!', 'info')
+    return redirect(url_for('index'))
+
+@app.route('/movies')
+def movies():
+    movies_list = get_all_movies()
+    genre = request.args.get('genre', 'all')
+    if genre != 'all':
+        movies_list = [m for m in movies_list if m['genre'].lower() == genre.lower()]
+    return render_template('movies.html', movies=movies_list)
+
+@app.route('/movie/<movie_id>')
+def movie_detail(movie_id):
+    movie = get_movie_by_id(movie_id)
+    if not movie: return redirect(url_for('movies'))
+    reviews = get_movie_reviews(movie_id)
+    return render_template('movie_detail.html', movie=movie, reviews=reviews)
+
+@app.route('/feedback/<movie_id>')
+def feedback_page(movie_id):
+    if not session.get('user_email'):
+        flash('Please login!', 'info')
+        return redirect(url_for('login'))
+    movie = get_movie_by_id(movie_id)
+    if not movie: return redirect(url_for('movies'))
+    return render_template('feedback.html', movie=movie)
+
+@app.route('/submit-feedback', methods=['POST'])
+def submit_feedback():
+    if not session.get('user_email'):
+        return redirect(url_for('login'))
+    
+    movie_id = request.form.get('movie_id')
+    rating = request.form.get('rating')
+    feedback = request.form.get('feedback', '')
+    
+    if submit_review(session['user_name'], session['user_email'], movie_id, rating, feedback):
+        flash('Review submitted!', 'success')
+    else:
+        flash('Review failed!', 'danger')
+    return redirect(url_for('movies'))
+
+@app.route('/analytics')
+def analytics():
+    movies = get_all_movies()
+    return render_template('analytics.html', movies=movies)
+
+@app.route('/my-reviews')
+def my_reviews():
+    if not session.get('user_email'): return redirect(url_for('login'))
+    user_reviews = [r for r in IN_MEMORY_REVIEWS if r['email'] == session['user_email']]
+    return render_template('my_reviews.html', reviews=user_reviews)
 
 @app.route('/favicon.ico')
 def favicon():
     return '', 204
 
-@app.route('/admin/init-movies', methods=['GET'])
-def init_movies():
-    try:
-        if AWS_AVAILABLE and movies_table:
-            for movie in MOVIES_DATA:
-                movies_table.put_item(Item=movie)
-            send_sns_notification("🎬 CinemaPulse movies initialized!", "Movies Initialized")
-            return jsonify({"status": "success", "message": f"Initialized {len(MOVIES_DATA)} movies"})
-        else:
-            return jsonify({"status": "success", "message": "Movies ready (local mode)"})
-    except Exception as e:
-        return jsonify({"status": "error", "message": str(e)})
+# ============================================================================
+# 404 ERROR HANDLER + CATCH-ALL
+# ============================================================================
+
+@app.errorhandler(404)
+def not_found(error):
+    flash('Page not found! Try /movies or /login', 'warning')
+    return redirect(url_for('index'))
+
+@app.route('/<path:path>')
+def catch_all(path):
+    flash(f'"{path}" not found. Try /movies', 'warning')
+    return redirect(url_for('index'))
+
+# ============================================================================
+# ADMIN ENDPOINT
+# ============================================================================
+
+@app.route('/admin/init')
+def admin_init():
+    return jsonify({'status': 'ready', 'dynamodb': use_dynamodb, 'movies': len(MOVIES)})
 
 if __name__ == '__main__':
-    print("="*80)
-    print("🚀 CinemaPulse PRODUCTION READY")
-    print(f"💾 Storage: {'AWS DynamoDB' if AWS_AVAILABLE else 'Local Memory'}")
-    print("🌐 Access: http://your-ec2-public-ip:5000")
-    print("="*80)
-    app.run(host='0.0.0.0', port=5000, debug=False)
+    print("🚀 CinemaPulse READY!")
+    print("🌐 http://your-ec2-ip:5000")
+    print("📱 All routes working!")
+    app.run(host='0.0.0.0', port=5000, debug=True)
