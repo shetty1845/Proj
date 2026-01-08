@@ -1,0 +1,98 @@
+{% extends 'base.html' %}
+
+{% block title %}Movies - CinemaPulse{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="page-header fade-in-up">
+        <h1 class="page-title gradient-text">
+            <i class="fas fa-film"></i> Discover Movies
+        </h1>
+        <p class="page-subtitle">Browse our collection and share your reviews</p>
+    </div>
+
+    <!-- Genre Filter -->
+    <div class="genre-filter fade-in">
+        <a href="/movies?genre=all" class="genre-btn {% if current_genre == 'all' %}active{% endif %}">
+            <i class="fas fa-th"></i> All
+        </a>
+        <a href="/movies?genre=sci-fi" class="genre-btn {% if current_genre == 'sci-fi' %}active{% endif %}">
+            <i class="fas fa-rocket"></i> Sci-Fi
+        </a>
+        <a href="/movies?genre=drama" class="genre-btn {% if current_genre == 'drama' %}active{% endif %}">
+            <i class="fas fa-theater-masks"></i> Drama
+        </a>
+        <a href="/movies?genre=action" class="genre-btn {% if current_genre == 'action' %}active{% endif %}">
+            <i class="fas fa-fist-raised"></i> Action
+        </a>
+        <a href="/movies?genre=thriller" class="genre-btn {% if current_genre == 'thriller' %}active{% endif %}">
+            <i class="fas fa-user-secret"></i> Thriller
+        </a>
+        <a href="/movies?genre=adventure" class="genre-btn {% if current_genre == 'adventure' %}active{% endif %}">
+            <i class="fas fa-compass"></i> Adventure
+        </a>
+    </div>
+
+    <!-- Movies Grid -->
+    {% if movies %}
+    <div class="movies-grid fade-in">
+        {% for movie in movies %}
+        <div class="movie-card glass-effect hover-lift" style="animation-delay: {{ loop.index0 * 0.1 }}s">
+            <div class="movie-poster-wrapper">
+                <img src="{{ movie.image_url }}" alt="{{ movie.title }}" class="movie-poster">
+                <div class="movie-overlay">
+                    <a href="/movie/{{ movie.movie_id }}" class="btn btn-secondary btn-sm">
+                        <i class="fas fa-info-circle"></i> View Details
+                    </a>
+                    <a href="/feedback/{{ movie.movie_id }}" class="btn btn-primary btn-sm">
+                        <i class="fas fa-star"></i> Rate Movie
+                    </a>
+                </div>
+            </div>
+            
+            <div class="movie-info">
+                <div class="movie-header">
+                    <h3 class="movie-title">{{ movie.title }}</h3>
+                    <span class="movie-genre">
+                        <i class="fas fa-tag"></i> {{ movie.genre }}
+                    </span>
+                </div>
+                
+                <p class="movie-description">{{ movie.description[:120] }}...</p>
+                
+                <div class="movie-meta">
+                    <span class="meta-item">
+                        <i class="fas fa-calendar"></i> {{ movie.release_year }}
+                    </span>
+                    <span class="meta-item">
+                        <i class="fas fa-user"></i> {{ movie.director }}
+                    </span>
+                </div>
+                
+                <div class="movie-stats">
+                    <div class="stat-badge">
+                        <i class="fas fa-star rating-icon"></i>
+                        <span class="rating-value">{{ "%.1f"|format(movie.avg_rating) }}</span>
+                        <span class="rating-label">/5.0</span>
+                    </div>
+                    <div class="stat-badge">
+                        <i class="fas fa-comments"></i>
+                        <span>{{ movie.total_reviews }} reviews</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state glass-effect fade-in">
+        <i class="fas fa-film empty-icon"></i>
+        <h3>No Movies Found</h3>
+        <p>No movies match your filter. Try a different genre!</p>
+        <a href="/movies" class="btn btn-primary">
+            <i class="fas fa-th"></i> Show All Movies
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,307 @@
+{% extends "base.html" %}
+
+{% block title %}Register - CinemaPulse{% endblock %}
+
+{% block extra_css %}
+<style>
+    .auth-container {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem 1rem;
+        background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 50%, #0f0f0f 100%);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .auth-container::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: radial-gradient(circle at 20% 80%, rgba(0, 255, 127, 0.1) 0%, transparent 50%),
+                    radial-gradient(circle at 80% 20%, rgba(255, 107, 107, 0.08) 0%, transparent 50%),
+                    radial-gradient(circle at 40% 40%, rgba(0, 212, 255, 0.06) 0%, transparent 50%);
+        z-index: 1;
+        animation: gradientShift 10s ease-in-out infinite alternate;
+    }
+
+    @keyframes gradientShift {
+        0% { transform: translateX(-30px) translateY(-30px) scale(1); }
+        100% { transform: translateX(30px) translateY(30px) scale(1.1); }
+    }
+
+    .auth-card {
+        background: linear-gradient(145deg, rgba(26, 26, 26, 0.95), rgba(10, 10, 10, 0.98));
+        backdrop-filter: blur(25px);
+        border-radius: 24px;
+        padding: 3rem 2.5rem;
+        max-width: 460px;
+        width: 100%;
+        box-shadow: 0 30px 60px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        position: relative;
+        z-index: 2;
+        animation: cardSlideIn 0.7s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    }
+
+    @keyframes cardSlideIn {
+        from {
+            opacity: 0;
+            transform: translateY(50px) scale(0.92);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+    }
+
+    .auth-header {
+        text-align: center;
+        margin-bottom: 2.5rem;
+    }
+
+    .auth-title {
+        font-size: 2.4rem;
+        font-weight: 800;
+        background: linear-gradient(135deg, #00ff7f, #00cc66, #00b359);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin: 0 0 0.75rem 0;
+        letter-spacing: -0.02em;
+    }
+
+    .auth-subtitle {
+        color: #b0b0b0;
+        font-size: 1.1rem;
+        margin: 0;
+        font-weight: 400;
+    }
+
+    .form-group {
+        position: relative;
+        margin-bottom: 1.75rem;
+    }
+
+    .form-input {
+        width: 100%;
+        padding: 1.25rem 1.25rem 1.25rem 3.5rem;
+        background: rgba(255, 255, 255, 0.045);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 16px;
+        color: #ffffff;
+        font-size: 1rem;
+        font-weight: 500;
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        backdrop-filter: blur(12px);
+        box-sizing: border-box;
+    }
+
+    .form-input:focus {
+        outline: none;
+        border-color: #00ff7f;
+        box-shadow: 0 0 0 4px rgba(0, 255, 127, 0.2), 0 8px 25px rgba(0, 255, 127, 0.15);
+        background: rgba(255, 255, 255, 0.08);
+        transform: translateY(-2px);
+    }
+
+    .form-input::placeholder {
+        color: #808080;
+    }
+
+    .input-icon {
+        position: absolute;
+        left: 1.25rem;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #808080;
+        font-size: 1.2rem;
+        z-index: 2;
+        transition: color 0.3s ease;
+    }
+
+    .form-input:focus + .input-icon,
+    .form-input:not(:placeholder-shown) + .input-icon {
+        color: #00ff7f;
+    }
+
+    .submit-btn {
+        width: 100%;
+        padding: 1.4rem;
+        background: linear-gradient(135deg, #00ff7f 0%, #00cc66 50%, #00b359 100%);
+        color: #ffffff;
+        border: none;
+        border-radius: 16px;
+        font-size: 1.15rem;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        margin-bottom: 1.5rem;
+        position: relative;
+        overflow: hidden;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .submit-btn::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+        transition: left 0.6s;
+    }
+
+    .submit-btn:hover::before {
+        left: 100%;
+    }
+
+    .submit-btn:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 20px 40px rgba(0, 255, 127, 0.4);
+    }
+
+    .submit-btn:active {
+        transform: translateY(-1px);
+    }
+
+    .switch-link {
+        text-align: center;
+        color: #00d4ff;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 1rem;
+        transition: all 0.3s ease;
+        display: block;
+        padding: 1rem;
+        border-radius: 12px;
+        background: rgba(0, 212, 255, 0.05);
+        border: 1px solid rgba(0, 212, 255, 0.15);
+    }
+
+    .switch-link:hover {
+        background: rgba(0, 212, 255, 0.12);
+        transform: translateY(-1px);
+        box-shadow: 0 10px 25px rgba(0, 212, 255, 0.2);
+        color: #00b8e6;
+    }
+
+    .features {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+        margin-top: 2rem;
+        padding-top: 2rem;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .feature {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        color: #b0b0b0;
+        font-size: 0.95rem;
+    }
+
+    .feature-icon {
+        width: 32px;
+        height: 32px;
+        background: linear-gradient(135deg, #00ff7f, #00cc66);
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.9rem;
+        color: white;
+        flex-shrink: 0;
+    }
+
+    @media (max-width: 480px) {
+        .auth-card {
+            margin: 1rem;
+            padding: 2.5rem 1.75rem;
+        }
+        
+        .auth-title {
+            font-size: 2rem;
+        }
+        
+        .features {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="auth-container">
+    <div class="auth-card">
+        <div class="auth-header">
+            <h1 class="auth-title">
+                <i class="fas fa-user-plus"></i> Join CinemaPulse
+            </h1>
+            <p class="auth-subtitle">Create your account in seconds</p>
+        </div>
+
+        <!-- Flash Messages will appear here from base.html -->
+
+        <form method="POST" action="{{ url_for('register') }}">
+            <div class="form-group">
+                <input type="text" name="name" class="form-input" placeholder="Full Name" required autocomplete="name">
+                <i class="fas fa-user input-icon"></i>
+            </div>
+            
+            <div class="form-group">
+                <input type="email" name="email" class="form-input" placeholder="Email Address" required autocomplete="email">
+                <i class="fas fa-envelope input-icon"></i>
+            </div>
+            
+            <div class="form-group">
+                <input type="password" name="password" class="form-input" placeholder="Password (min 6 characters)" required autocomplete="new-password" minlength="6">
+                <i class="fas fa-lock input-icon"></i>
+            </div>
+            
+            <button type="submit" class="submit-btn">
+                <i class="fas fa-rocket"></i> Create Account
+            </button>
+        </form>
+
+        <a href="{{ url_for('login') }}" class="switch-link">
+            <i class="fas fa-sign-in-alt"></i> Already have an account? Sign In
+        </a>
+
+        <div class="features">
+            <div class="feature">
+                <div class="feature-icon">
+                    <i class="fas fa-star"></i>
+                </div>
+                <span>Personalized recommendations</span>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">
+                    <i class="fas fa-chart-line"></i>
+                </div>
+                <span>Review analytics dashboard</span>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">
+                    <i class="fas fa-history"></i>
+                </div>
+                <span>Track your review history</span>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">
+                    <i class="fas fa-shield-alt"></i>
+                </div>
+                <span>Secure & private</span>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

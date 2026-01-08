@@ -1,0 +1,310 @@
+{% extends 'base.html' %}
+
+{% block title %}Analytics - CinemaPulse{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="page-header fade-in-up">
+        <h1 class="page-title gradient-text">
+            <i class="fas fa-chart-line"></i> Analytics Dashboard
+        </h1>
+        <p class="page-subtitle">Real-time movie ratings and feedback statistics</p>
+    </div>
+
+    <!-- User Personal Statistics -->
+    {% if user_email %}
+    <div class="section-container fade-in">
+        <h2 class="section-title">
+            <i class="fas fa-user-circle"></i> <span class="gradient-text">Your Personal Statistics</span>
+        </h2>
+        <div class="overview-stats">
+            <div class="overview-card glass-effect hover-lift" style="border: 2px solid #6366f1;">
+                <div class="overview-icon" style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);">
+                    <i class="fas fa-star"></i>
+                </div>
+                <div class="overview-content">
+                    <div class="overview-value">{{ "%.2f"|format(user_avg_rating) }}</div>
+                    <div class="overview-label">Your Average Rating</div>
+                </div>
+            </div>
+            <div class="overview-card glass-effect hover-lift" style="border: 2px solid #ec4899;">
+                <div class="overview-icon" style="background: linear-gradient(135deg, #ec4899 0%, #f43f5e 100%);">
+                    <i class="fas fa-comments"></i>
+                </div>
+                <div class="overview-content">
+                    <div class="overview-value">{{ user_total_reviews }}</div>
+                    <div class="overview-label">Your Total Reviews</div>
+                </div>
+            </div>
+            <div class="overview-card glass-effect hover-lift" style="border: 2px solid #14b8a6;">
+                <div class="overview-icon" style="background: linear-gradient(135deg, #14b8a6 0%, #10b981 100%);">
+                    <i class="fas fa-film"></i>
+                </div>
+                <div class="overview-content">
+                    <div class="overview-value">{{ user_total_reviews }}</div>
+                    <div class="overview-label">Movies You Rated</div>
+                </div>
+            </div>
+            <div class="overview-card glass-effect hover-lift" style="border: 2px solid #f59e0b;">
+                <div class="overview-icon" style="background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%);">
+                    <i class="fas fa-trophy"></i>
+                </div>
+                <div class="overview-content">
+                    <div class="overview-value">
+                        {% if user_avg_rating >= 4 %}😍{% elif user_avg_rating >= 3 %}😊{% elif user_avg_rating >= 2 %}😐{% else %}😞{% endif %}
+                    </div>
+                    <div class="overview-label">Your Mood</div>
+                </div>
+            </div>
+        </div>
+        
+        <div style="text-align: center; margin-top: 2rem; padding: 2rem; background: rgba(99, 102, 241, 0.1); border-radius: 1rem; border: 1px solid rgba(99, 102, 241, 0.3);">
+            <h3 style="margin-bottom: 1rem;">
+                <i class="fas fa-chart-bar"></i> Your Rating Breakdown
+            </h3>
+            <div class="rating-progress" style="width: 80%; margin: 0 auto;">
+                <div class="rating-progress-fill" style="width: {{ (user_avg_rating / 5 * 100)|round|int }}%; height: 30px; border-radius: 15px;">
+                    <span style="color: white; font-weight: bold; line-height: 30px;">{{ "%.2f"|format(user_avg_rating) }} / 5.0</span>
+                </div>
+            </div>
+            <p style="color: var(--text-secondary); margin-top: 1rem;">
+                {% if user_avg_rating >= 4.5 %}
+                    🌟 You're a tough critic who loves quality movies!
+                {% elif user_avg_rating >= 4 %}
+                    ⭐ You appreciate good cinema!
+                {% elif user_avg_rating >= 3 %}
+                    👍 You have balanced movie taste!
+                {% elif user_avg_rating >= 2 %}
+                    🤔 You're selective about what you like!
+                {% else %}
+                    😅 You're hard to impress!
+                {% endif %}
+            </p>
+            <a href="/my-reviews" class="btn btn-primary" style="margin-top: 1rem;">
+                <i class="fas fa-history"></i> View All Your Reviews
+            </a>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Overall Platform Statistics -->
+    <div class="section-container fade-in">
+        <h2 class="section-title">
+            <i class="fas fa-globe"></i> Platform-Wide Statistics
+        </h2>
+        <div class="overview-stats">
+            <div class="overview-card glass-effect hover-lift">
+                <div class="overview-icon">
+                    <i class="fas fa-film"></i>
+                </div>
+                <div class="overview-content">
+                    <div class="overview-value">{{ total_movies }}</div>
+                    <div class="overview-label">Total Movies</div>
+                </div>
+            </div>
+            <div class="overview-card glass-effect hover-lift">
+                <div class="overview-icon">
+                    <i class="fas fa-comments"></i>
+                </div>
+                <div class="overview-content">
+                    <div class="overview-value">{{ total_reviews }}</div>
+                    <div class="overview-label">Total Reviews</div>
+                </div>
+            </div>
+            <div class="overview-card glass-effect hover-lift">
+                <div class="overview-icon">
+                    <i class="fas fa-star"></i>
+                </div>
+                <div class="overview-content">
+                    <div class="overview-value">
+                        {% if total_reviews > 0 and top_movies %}
+                            {{ "%.1f"|format(top_movies[0].avg_rating) }}
+                        {% else %}
+                            N/A
+                        {% endif %}
+                    </div>
+                    <div class="overview-label">Highest Rating</div>
+                </div>
+            </div>
+            <div class="overview-card glass-effect hover-lift">
+                <div class="overview-icon">
+                    <i class="fas fa-bolt"></i>
+                </div>
+                <div class="overview-content">
+                    <div class="overview-value">Real-Time</div>
+                    <div class="overview-label">Analytics Mode</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Personalized Recommendations -->
+    {% if recommendations and user_email %}
+    <div class="section-container fade-in">
+        <h2 class="section-title">
+            <i class="fas fa-magic"></i> <span class="gradient-text">Recommended For You</span>
+        </h2>
+        <p style="text-align: center; color: var(--text-secondary); margin-bottom: 2rem; font-size: 1.1rem;">
+            Based on your rating preferences, we think you'll love these movies!
+        </p>
+        <div class="analytics-grid">
+            {% for movie in recommendations %}
+            <div class="analytics-card glass-effect hover-lift" style="animation-delay: {{ loop.index0 * 0.1 }}s">
+                <div class="rank-badge" style="background: linear-gradient(135deg, #14b8a6 0%, #10b981 100%);">
+                    <i class="fas fa-thumbs-up"></i> For You
+                </div>
+                <img src="{{ movie.image_url }}" alt="{{ movie.title }}" class="analytics-poster">
+                <div class="analytics-info">
+                    <h3 class="analytics-title">{{ movie.title }}</h3>
+                    <span class="analytics-genre">
+                        <i class="fas fa-tag"></i> {{ movie.genre }}
+                    </span>
+                    <div class="analytics-metrics">
+                        <div class="metric-item">
+                            <i class="fas fa-star metric-icon"></i>
+                            <span class="metric-value">{{ "%.2f"|format(movie.avg_rating) }}</span>
+                            <span class="metric-label">Rating</span>
+                        </div>
+                        <div class="metric-item">
+                            <i class="fas fa-comments metric-icon"></i>
+                            <span class="metric-value">{{ movie.total_reviews }}</span>
+                            <span class="metric-label">Reviews</span>
+                        </div>
+                    </div>
+                    <div class="rating-progress">
+                        <div class="rating-progress-fill" style="width: {{ (movie.avg_rating / 5 * 100)|round|int }}%"></div>
+                    </div>
+                    <a href="/feedback/{{ movie.movie_id }}" class="btn btn-sm btn-primary">
+                        <i class="fas fa-star"></i> Rate This Movie
+                    </a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Top Rated Movies -->
+    {% if top_movies %}
+    <div class="section-container fade-in">
+        <h2 class="section-title">
+            <i class="fas fa-trophy"></i> Top Rated Movies
+        </h2>
+        <div class="analytics-grid">
+            {% for movie in top_movies[:6] %}
+            <div class="analytics-card glass-effect hover-lift" style="animation-delay: {{ loop.index0 * 0.1 }}s">
+                <div class="rank-badge">
+                    <i class="fas fa-medal"></i> #{{ loop.index }}
+                </div>
+                <img src="{{ movie.image_url }}" alt="{{ movie.title }}" class="analytics-poster">
+                <div class="analytics-info">
+                    <h3 class="analytics-title">{{ movie.title }}</h3>
+                    <span class="analytics-genre">
+                        <i class="fas fa-tag"></i> {{ movie.genre }}
+                    </span>
+                    <div class="analytics-metrics">
+                        <div class="metric-item">
+                            <i class="fas fa-star metric-icon"></i>
+                            <span class="metric-value">{{ "%.2f"|format(movie.avg_rating) }}</span>
+                            <span class="metric-label">Rating</span>
+                        </div>
+                        <div class="metric-item">
+                            <i class="fas fa-comments metric-icon"></i>
+                            <span class="metric-value">{{ movie.total_reviews }}</span>
+                            <span class="metric-label">Reviews</span>
+                        </div>
+                    </div>
+                    <div class="rating-progress">
+                        <div class="rating-progress-fill" style="width: {{ (movie.avg_rating / 5 * 100)|round|int }}%"></div>
+                    </div>
+                    <a href="/movie/{{ movie.movie_id }}" class="btn btn-sm btn-primary">
+                        <i class="fas fa-eye"></i> View Details
+                    </a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+    <div class="section-container fade-in">
+        <div class="empty-state glass-effect">
+            <i class="fas fa-chart-line empty-icon"></i>
+            <h3>No Rated Movies Yet</h3>
+            <p>Be the first to rate a movie and see it here!</p>
+            <a href="/movies" class="btn btn-primary btn-glow">
+                <i class="fas fa-star"></i> Rate Your First Movie
+            </a>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Genre Distribution -->
+    <div class="section-container fade-in">
+        <h2 class="section-title">
+            <i class="fas fa-chart-pie"></i> Genre Distribution
+        </h2>
+        <div class="genre-grid">
+            {% for genre, count in genres.items() %}
+            <div class="genre-card glass-effect hover-lift">
+                <div class="genre-icon">
+                    <i class="fas fa-{% if genre == 'Sci-Fi' %}rocket{% elif genre == 'Drama' %}theater-masks{% elif genre == 'Action' %}fist-raised{% elif genre == 'Thriller' %}user-secret{% elif genre == 'Adventure' %}compass{% else %}film{% endif %}"></i>
+                </div>
+                <div class="genre-name">{{ genre }}</div>
+                <div class="genre-count">{{ count }} movie{{ 's' if count > 1 else '' }}</div>
+                <a href="/movies?genre={{ genre.lower() }}" class="btn btn-sm btn-secondary" style="margin-top: 1rem;">
+                    <i class="fas fa-filter"></i> View Movies
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Most Reviewed Movies -->
+    {% if most_reviewed %}
+    <div class="section-container fade-in">
+        <h2 class="section-title">
+            <i class="fas fa-fire"></i> Most Reviewed Movies
+        </h2>
+        <div class="most-reviewed-list">
+            {% for movie in most_reviewed[:5] %}
+            {% if movie.total_reviews > 0 %}
+            <div class="review-item glass-effect hover-lift">
+                <img src="{{ movie.image_url }}" alt="{{ movie.title }}" class="review-thumb">
+                <div class="review-info">
+                    <h4 class="review-title">{{ movie.title }}</h4>
+                    <span class="review-genre">{{ movie.genre }} • {{ movie.release_year }}</span>
+                    <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 0.5rem;">
+                        {{ movie.description[:100] }}...
+                    </p>
+                </div>
+                <div class="review-stats">
+                    <div class="review-stat">
+                        <i class="fas fa-star"></i>
+                        <span>{{ "%.1f"|format(movie.avg_rating) }}</span>
+                    </div>
+                    <div class="review-stat">
+                        <i class="fas fa-comments"></i>
+                        <span>{{ movie.total_reviews }}</span>
+                    </div>
+                </div>
+                <a href="/feedback/{{ movie.movie_id }}" class="btn btn-sm btn-primary">
+                    <i class="fas fa-plus"></i> Add Review
+                </a>
+            </div>
+            {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Call to Action -->
+    <div class="cta-section fade-in" style="margin-top: 4rem;">
+        <div class="cta-content glass-effect">
+            <h2><i class="fas fa-star"></i> Share Your Opinion</h2>
+            <p>Help others discover great movies by rating and reviewing!</p>
+            <a href="/movies" class="btn btn-primary btn-large btn-glow">
+                <i class="fas fa-film"></i> Start Rating Movies
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

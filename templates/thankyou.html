@@ -1,0 +1,108 @@
+{% extends 'base.html' %}
+
+{% block title %}Thank You - CinemaPulse{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="thankyou-container fade-in-up">
+        <!-- Success Animation -->
+        <div class="success-animation">
+            <div class="checkmark-circle">
+                <div class="checkmark"></div>
+            </div>
+        </div>
+
+        <!-- Thank You Message -->
+        <h1 class="thankyou-title gradient-text">Thank You!</h1>
+        <p class="thankyou-subtitle">Your review has been submitted successfully</p>
+
+        <!-- Movie Info -->
+        {% if movie %}
+        <div class="thankyou-movie-card glass-effect">
+            <img src="{{ movie.image_url }}" alt="{{ movie.title }}" class="thankyou-movie-poster">
+            <div class="thankyou-movie-info">
+                <h3>{{ movie.title }}</h3>
+                <p>{{ movie.genre }} • {{ movie.release_year }}</p>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- User Stats -->
+        {% if session.get('user_email') %}
+        <div class="updated-stats-card glass-effect">
+            <h3 class="stats-title">
+                <i class="fas fa-chart-bar"></i> Your Review Statistics
+            </h3>
+            <div class="stats-display">
+                <div class="stat-box-large">
+                    <div class="stat-icon-large">
+                        <i class="fas fa-star"></i>
+                    </div>
+                    <div class="stat-content">
+                        <div class="stat-value">{{ "%.2f"|format(user_avg_rating) }}</div>
+                        <div class="stat-label">Average Rating</div>
+                    </div>
+                </div>
+                <div class="stat-box-large">
+                    <div class="stat-icon-large">
+                        <i class="fas fa-comments"></i>
+                    </div>
+                    <div class="stat-content">
+                        <div class="stat-value">{{ session.get('user_total_reviews', 0) }}</div>
+                        <div class="stat-label">Total Reviews</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="progress-bar-container">
+                <div class="progress-bar-fill" style="width: {{ (user_avg_rating / 5 * 100)|round|int }}%">
+                    {{ "%.2f"|format(user_avg_rating) }} / 5.0
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Recommendations -->
+        {% if recommendations %}
+        <div class="recommendations-section fade-in">
+            <h2 class="section-title gradient-text">
+                <i class="fas fa-thumbs-up"></i> You Might Also Like
+            </h2>
+            <div class="recommendations-grid">
+                {% for rec in recommendations %}
+                <div class="recommendation-card glass-effect hover-lift" style="animation-delay: {{ loop.index0 * 0.1 }}s">
+                    <img src="{{ rec.image_url }}" alt="{{ rec.title }}" class="recommendation-poster">
+                    <div class="recommendation-info">
+                        <h4>{{ rec.title }}</h4>
+                        <span class="recommendation-genre">{{ rec.genre }}</span>
+                        <div class="recommendation-rating">
+                            <i class="fas fa-star"></i>
+                            <span>{{ "%.1f"|format(rec.avg_rating) }}</span>
+                        </div>
+                        <a href="/feedback/{{ rec.movie_id }}" class="btn btn-sm btn-primary">
+                            <i class="fas fa-star"></i> Rate This
+                        </a>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Action Buttons -->
+        <div class="action-buttons">
+            <a href="/movies" class="btn btn-primary btn-large btn-glow">
+                <i class="fas fa-film"></i> Browse More Movies
+            </a>
+            <a href="/analytics" class="btn btn-secondary btn-large">
+                <i class="fas fa-chart-line"></i> View Analytics
+            </a>
+            {% if session.get('user_email') %}
+            <a href="/my-reviews" class="btn btn-outline btn-large">
+                <i class="fas fa-user-circle"></i> My Reviews
+            </a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

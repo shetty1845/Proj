@@ -1,0 +1,134 @@
+{% extends 'base.html' %}
+
+{% block title %}Home - CinemaPulse{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- Hero Section -->
+    <div class="hero-section fade-in-up">
+        <div class="hero-content">
+            <h1 class="hero-title">
+                Welcome to <span class="gradient-text">CinemaPulse</span>
+            </h1>
+            <p class="hero-subtitle">
+                Discover, Rate, and Review Your Favorite Movies
+            </p>
+            <p class="hero-description">
+                Join our community of movie enthusiasts. Share your thoughts, discover new films, and explore real-time analytics.
+            </p>
+            <div class="hero-actions">
+                <a href="/movies" class="btn btn-primary btn-large btn-glow">
+                    <i class="fas fa-film"></i> Browse Movies
+                </a>
+                <a href="/analytics" class="btn btn-secondary btn-large">
+                    <i class="fas fa-chart-line"></i> View Analytics
+                </a>
+            </div>
+        </div>
+        
+        <div class="hero-image">
+            <div class="movie-cards-stack">
+                <div class="movie-card-small card-1 glass-effect">
+                    <i class="fas fa-star"></i>
+                    <span>Rate Movies</span>
+                </div>
+                <div class="movie-card-small card-2 glass-effect">
+                    <i class="fas fa-comments"></i>
+                    <span>Share Reviews</span>
+                </div>
+                <div class="movie-card-small card-3 glass-effect">
+                    <i class="fas fa-chart-bar"></i>
+                    <span>View Analytics</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Features Section -->
+    <div class="features-section fade-in">
+        <h2 class="section-title gradient-text">Why Choose CinemaPulse?</h2>
+        <div class="features-grid">
+            <div class="feature-card glass-effect hover-lift">
+                <div class="feature-icon">
+                    <i class="fas fa-bolt"></i>
+                </div>
+                <h3>Real-Time Updates</h3>
+                <p>See movie ratings and reviews update instantly as the community engages.</p>
+            </div>
+            
+            <div class="feature-card glass-effect hover-lift">
+                <div class="feature-icon">
+                    <i class="fas fa-brain"></i>
+                </div>
+                <h3>Smart Recommendations</h3>
+                <p>Get personalized movie suggestions based on your ratings and preferences.</p>
+            </div>
+            
+            <div class="feature-card glass-effect hover-lift">
+                <div class="feature-icon">
+                    <i class="fas fa-chart-pie"></i>
+                </div>
+                <h3>Detailed Analytics</h3>
+                <p>Explore comprehensive statistics about movies, genres, and rating trends.</p>
+            </div>
+            
+            <div class="feature-card glass-effect hover-lift">
+                <div class="feature-icon">
+                    <i class="fas fa-users"></i>
+                </div>
+                <h3>Community Driven</h3>
+                <p>Join a vibrant community of movie lovers sharing honest opinions.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats Section -->
+    <div class="stats-section fade-in">
+        <h2 class="section-title gradient-text">Platform Statistics</h2>
+        <div class="stats-grid">
+            <div class="stat-card glass-effect hover-lift">
+                <div class="stat-icon">
+                    <i class="fas fa-film"></i>
+                </div>
+                <div class="stat-number">8</div>
+                <div class="stat-label">Movies Available</div>
+            </div>
+            
+            <div class="stat-card glass-effect hover-lift">
+                <div class="stat-icon">
+                    <i class="fas fa-star"></i>
+                </div>
+                <div class="stat-number">5.0</div>
+                <div class="stat-label">Max Rating</div>
+            </div>
+            
+            <div class="stat-card glass-effect hover-lift">
+                <div class="stat-icon">
+                    <i class="fas fa-tags"></i>
+                </div>
+                <div class="stat-number">6</div>
+                <div class="stat-label">Genres</div>
+            </div>
+            
+            <div class="stat-card glass-effect hover-lift">
+                <div class="stat-icon">
+                    <i class="fas fa-bolt"></i>
+                </div>
+                <div class="stat-number">Real-Time</div>
+                <div class="stat-label">Updates</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CTA Section -->
+    <div class="cta-section fade-in">
+        <div class="cta-content glass-effect">
+            <h2><i class="fas fa-rocket"></i> Ready to Start?</h2>
+            <p>Explore our collection of movies and share your thoughts with the community!</p>
+            <a href="/movies" class="btn btn-primary btn-large btn-glow">
+                <i class="fas fa-play-circle"></i> Get Started Now
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

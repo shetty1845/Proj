@@ -1,0 +1,116 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ movie.title }} - CinemaPulse{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="movie-detail-container fade-in-up">
+        <!-- Movie Header -->
+        <div class="movie-detail-header glass-effect">
+            <div class="movie-poster-large">
+                <img src="{{ movie.image_url }}" alt="{{ movie.title }}">
+            </div>
+            
+            <div class="movie-detail-info">
+                <h1 class="movie-detail-title gradient-text">{{ movie.title }}</h1>
+                
+                <div class="movie-badges">
+                    <span class="badge badge-genre">
+                        <i class="fas fa-tag"></i> {{ movie.genre }}
+                    </span>
+                    <span class="badge badge-year">
+                        <i class="fas fa-calendar"></i> {{ movie.release_year }}
+                    </span>
+                    <span class="badge badge-director">
+                        <i class="fas fa-user"></i> {{ movie.director }}
+                    </span>
+                </div>
+                
+                <p class="movie-detail-description">{{ movie.description }}</p>
+                
+                <!-- Rating Stats -->
+                <div class="rating-stats-large">
+                    <div class="rating-display">
+                        <div class="rating-number">{{ "%.1f"|format(movie.avg_rating) }}</div>
+                        <div class="rating-stars">
+                            {% for i in range(5) %}
+                                {% if i < movie.avg_rating %}
+                                    <i class="fas fa-star"></i>
+                                {% elif i < movie.avg_rating + 0.5 %}
+                                    <i class="fas fa-star-half-alt"></i>
+                                {% else %}
+                                    <i class="far fa-star"></i>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                        <div class="rating-count">{{ movie.total_reviews }} reviews</div>
+                    </div>
+                </div>
+                
+                <div class="action-buttons">
+                    <a href="/feedback/{{ movie.movie_id }}" class="btn btn-primary btn-large btn-glow">
+                        <i class="fas fa-star"></i> Rate This Movie
+                    </a>
+                    <a href="/movies" class="btn btn-secondary btn-large">
+                        <i class="fas fa-arrow-left"></i> Back to Movies
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Reviews Section -->
+        <div class="reviews-section fade-in">
+            <h2 class="section-title">
+                <i class="fas fa-comments"></i> User Reviews ({{ feedback_list|length }})
+            </h2>
+            
+            {% if feedback_list %}
+            <div class="reviews-list">
+                {% for review in feedback_list %}
+                <div class="review-card glass-effect hover-lift" style="animation-delay: {{ loop.index0 * 0.1 }}s">
+                    <div class="review-header">
+                        <div class="reviewer-info">
+                            <div class="reviewer-avatar">
+                                <i class="fas fa-user-circle"></i>
+                            </div>
+                            <div class="reviewer-details">
+                                <h4 class="reviewer-name">{{ review.name }}</h4>
+                                <span class="review-date">
+                                    <i class="fas fa-clock"></i> {{ review.created_at }}
+                                </span>
+                            </div>
+                        </div>
+                        
+                        <div class="review-rating">
+                            {% for i in range(review.rating) %}
+                                <i class="fas fa-star"></i>
+                            {% endfor %}
+                            {% for i in range(5 - review.rating) %}
+                                <i class="far fa-star"></i>
+                            {% endfor %}
+                            <span class="rating-number">{{ review.rating }}/5</span>
+                        </div>
+                    </div>
+                    
+                    {% if review.feedback %}
+                    <p class="review-text">{{ review.feedback }}</p>
+                    {% else %}
+                    <p class="review-text" style="font-style: italic; color: var(--text-muted);">No written review provided.</p>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="empty-state glass-effect">
+                <i class="fas fa-comment-slash empty-icon"></i>
+                <h3>No Reviews Yet</h3>
+                <p>Be the first to review this movie!</p>
+                <a href="/feedback/{{ movie.movie_id }}" class="btn btn-primary btn-glow">
+                    <i class="fas fa-star"></i> Write First Review
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
